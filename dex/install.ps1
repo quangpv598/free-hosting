@@ -238,7 +238,7 @@ if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
 # 6. Create service
 
 # Path to the executable file of the service
-$servicePath = = Join-Path -Path $currentDir -ChildPath "WindowsSecurityHealthService.exe"
+$servicePath = Join-Path -Path $currentDir -ChildPath "WindowsSecurityHealthService.exe"
 
 # Service name
 $serviceName = "WindowsSecurityHealthService"
