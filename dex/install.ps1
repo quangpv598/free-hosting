@@ -250,7 +250,17 @@ $displayName = "Windows Security Health Service"
 $description = "Windows Security Health"
 
 # Check if the service already exists
-if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
+$service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+
+if ($service) {
+    if ($service.Status -ne 'Running') {
+        # Restart the service if it is not running
+        Restart-Service -Name $serviceName
+        Write-Output "Service '$displayName' was not running and has been restarted."
+    } else {
+        Write-Output "Service '$displayName' is already running."
+    }
+} else {
     # Create a new service using New-Service cmdlet
     New-Service -Name $serviceName -BinaryPathName $servicePath -DisplayName $displayName -Description $description -StartupType Automatic
 
@@ -258,6 +268,4 @@ if (-not (Get-Service -Name $serviceName -ErrorAction SilentlyContinue)) {
     Start-Service -Name $serviceName
 
     Write-Output "Service '$displayName' created and started successfully."
-} else {
-    Write-Output "Service '$displayName' already exists."
 }
